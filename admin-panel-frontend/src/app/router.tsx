@@ -9,6 +9,8 @@ import { UsersPage } from '@/pages/users/users';
 import { WorkflowPage } from '@/pages/workflow/workflow';
 import { NotFoundPage } from '@/pages/not-found';
 import { ROUTES } from '@/config';
+import SettingsPage from '@/pages/settings/settings-page';
+import ProfilePage from '@/features/profile/profile-page';
 
 export const router = createBrowserRouter([
   {
@@ -45,6 +47,14 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.WORKFLOW,
         element: <WorkflowPage />,
+      },
+      {
+        path: ROUTES.SETTINGS,
+        element: <SettingsPage/>,
+      },
+      {
+        path: ROUTES.PROFILE,
+        element: <ProfilePage/>
       },
     ],
   },

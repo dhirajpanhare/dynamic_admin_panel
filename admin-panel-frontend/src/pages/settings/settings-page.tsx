@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { GeneralTab } from '@/pages/settings/general-tab';
-import { AppearanceTab } from '@/pages/settings/appearance-tab';
-import { SecurityTab } from '@/pages/settings/security-tab';
-import { NotificationsTab } from '@/pages/settings/notifications-tab';
-import { BillingTab } from '@/pages/settings/billing-tab';
+import { GeneralTab } from './general-tab';
+import { AppearanceTab } from './appearance-tab';
+import { SecurityTab } from './security-tab';
+import { NotificationsTab } from './notifications-tab';
+import { BillingTab } from './billing-tab';
 import { Settings, Palette, Shield, Bell, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
