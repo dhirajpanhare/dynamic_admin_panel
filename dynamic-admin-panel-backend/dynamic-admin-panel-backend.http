@@ -1,0 +1,6 @@
+@dynamic_admin_panel_backend_HostAddress = http://localhost:5136
+
+GET {{dynamic_admin_panel_backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
