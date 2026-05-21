@@ -24,7 +24,11 @@ import {
   Trash2,
   Eye,
   Code,
+  Save,
 } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
+import apiClient from '@/lib/api/client';
+import { toast } from 'sonner';
 
 interface FormField {
   id: string;
@@ -97,6 +101,13 @@ export function FormBuilderPage() {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formName, setFormName] = useState('Untitled Form');
   const [showPreview, setShowPreview] = useState(false);
+  const [showJson, setShowJson] = useState(false);
+
+  const saveMutation = useMutation({
+    mutationFn: (schema: object) => apiClient.post('/api/metadata/entities', schema).then((r) => r.data),
+    onSuccess: () => toast.success('Form schema saved successfully'),
+    onError: (e: Error) => toast.error(e.message ?? 'Failed to save form schema'),
+  });
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -161,11 +172,17 @@ export function FormBuilderPage() {
             <Eye className="mr-2 h-4 w-4" />
             {showPreview ? 'Hide' : 'Show'} Preview
           </Button>
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            onClick={() => setShowJson(!showJson)}
+          >
             <Code className="mr-2 h-4 w-4" />
-            View JSON
+            {showJson ? 'Hide' : 'View'} JSON
           </Button>
-          <Button>Save Form</Button>
+          <Button onClick={() => saveMutation.mutate(generateSchema())} disabled={saveMutation.isPending}>
+            <Save className="mr-2 h-4 w-4" />
+            {saveMutation.isPending ? 'Saving...' : 'Save Form'}
+          </Button>
         </div>
       </div>
 

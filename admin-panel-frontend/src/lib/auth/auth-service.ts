@@ -1,5 +1,6 @@
 import { api } from '@/lib/api/client';
 import { API_CONFIG } from '@/config/api.config';
+import { STORAGE_KEYS } from '@/config/constants';
 
 export interface User {
   id: string;
@@ -104,7 +105,7 @@ export const authService = {
    */
   getProfile: async (): Promise<User> => {
     // Check if using test token
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     if (token && token.startsWith('test-jwt-token-')) {
       console.warn('🧪 Using test token - returning test user profile');
       return TEST_USER;
@@ -124,8 +125,8 @@ export const authService = {
       console.error('Logout error:', error);
     } finally {
       // Clear local storage regardless of API response
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('refresh_token');
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     }
   },
 

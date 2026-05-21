@@ -1,4 +1,6 @@
 import { ComponentType } from 'react';
+import { StatWidget } from '@/components/widgets/stat-widget';
+import { ChartWidgetDynamic } from '@/components/widgets/chart-widget-dynamic';
 
 // Widget component props
 export interface WidgetComponentProps {
@@ -15,6 +17,14 @@ export type WidgetComponentRegistry = Record<string, ComponentType<WidgetCompone
 
 // Widget component registry
 export const widgetComponents: WidgetComponentRegistry = {};
+
+// ─── Register built-in widget components ─────────────────────────────────────
+widgetComponents['metric'] = StatWidget as ComponentType<WidgetComponentProps>;
+widgetComponents['stat'] = StatWidget as ComponentType<WidgetComponentProps>;
+widgetComponents['chart'] = ChartWidgetDynamic as ComponentType<WidgetComponentProps>;
+widgetComponents['line-chart'] = ChartWidgetDynamic as ComponentType<WidgetComponentProps>;
+widgetComponents['bar-chart'] = ChartWidgetDynamic as ComponentType<WidgetComponentProps>;
+widgetComponents['pie-chart'] = ChartWidgetDynamic as ComponentType<WidgetComponentProps>;
 
 /**
  * Register a widget component

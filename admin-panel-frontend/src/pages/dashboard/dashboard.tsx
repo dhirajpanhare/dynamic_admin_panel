@@ -8,7 +8,11 @@ import {
   Activity,
   ShoppingCart,
 } from 'lucide-react';
+import { DynamicDashboard } from '@/components/dynamic/dynamic-dashboard';
+import { useDashboardConfig } from '@/lib/hooks/use-metadata';
+import { Skeleton } from '@/components/ui/skeleton';
 
+// ─── Static fallback dashboard content ───────────────────────────────────────
 const revenueData = [
   { month: 'Jan', revenue: 4200 },
   { month: 'Feb', revenue: 3800 },
@@ -28,10 +32,9 @@ const ordersData = [
   { day: 'Sun', orders: 43 },
 ];
 
-export function DashboardPage() {
+function StaticFallbackDashboard() {
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-600 mt-1">
@@ -39,7 +42,6 @@ export function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Revenue"
@@ -75,7 +77,6 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartWidget
           title="Revenue Overview"
@@ -93,7 +94,6 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Additional Stats */}
       <div className="grid gap-6 md:grid-cols-3">
         <StatsCard
           title="Conversion Rate"
@@ -123,3 +123,33 @@ export function DashboardPage() {
     </div>
   );
 }
+
+// ─── Main dashboard page ──────────────────────────────────────────────────────
+export function DashboardPage() {
+  const { data: dashboardConfig, isLoading, isError } = useDashboardConfig('default');
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  // If API returned a config, render it dynamically; otherwise show static fallback
+  if (!isError && dashboardConfig) {
+    return <DynamicDashboard config={dashboardConfig} />;
+  }
+
+  return <StaticFallbackDashboard />;
+}
+

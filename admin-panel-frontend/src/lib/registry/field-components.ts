@@ -1,4 +1,14 @@
 import { ComponentType } from 'react';
+import { TextField } from '@/components/fields/text-field';
+import { NumberField } from '@/components/fields/number-field';
+import { TextareaField } from '@/components/fields/textarea-field';
+import { SelectField } from '@/components/fields/select-field';
+import { MultiSelectField } from '@/components/fields/multi-select-field';
+import { CheckboxField } from '@/components/fields/checkbox-field';
+import { DateField } from '@/components/fields/date-field';
+import { FileField } from '@/components/fields/file-field';
+import { RichTextField } from '@/components/fields/rich-text-field';
+import { RelationField } from '@/components/fields/relation-field';
 
 // Field component type
 export interface FieldComponentProps {
@@ -20,6 +30,40 @@ export type FieldComponentRegistry = Record<string, ComponentType<FieldComponent
 // Field component registry
 // Components will be registered here as they are created
 export const fieldComponents: FieldComponentRegistry = {};
+
+// ─── Register built-in field components ───────────────────────────────────────
+// text / email / url / password — all share the TextField renderer
+fieldComponents['text'] = TextField as ComponentType<FieldComponentProps>;
+fieldComponents['email'] = TextField as ComponentType<FieldComponentProps>;
+fieldComponents['url'] = TextField as ComponentType<FieldComponentProps>;
+fieldComponents['password'] = TextField as ComponentType<FieldComponentProps>;
+fieldComponents['slug'] = TextField as ComponentType<FieldComponentProps>;
+fieldComponents['color'] = TextField as ComponentType<FieldComponentProps>;
+
+fieldComponents['number'] = NumberField as ComponentType<FieldComponentProps>;
+fieldComponents['textarea'] = TextareaField as ComponentType<FieldComponentProps>;
+fieldComponents['json'] = TextareaField as ComponentType<FieldComponentProps>;
+
+fieldComponents['select'] = SelectField as ComponentType<FieldComponentProps>;
+fieldComponents['radio'] = SelectField as ComponentType<FieldComponentProps>;
+
+fieldComponents['multi-select'] = MultiSelectField as ComponentType<FieldComponentProps>;
+fieldComponents['checkbox-group'] = MultiSelectField as ComponentType<FieldComponentProps>;
+
+fieldComponents['checkbox'] = CheckboxField as ComponentType<FieldComponentProps>;
+fieldComponents['switch'] = CheckboxField as ComponentType<FieldComponentProps>;
+
+fieldComponents['date'] = DateField as ComponentType<FieldComponentProps>;
+fieldComponents['datetime'] = DateField as ComponentType<FieldComponentProps>;
+fieldComponents['date-range'] = DateField as ComponentType<FieldComponentProps>;
+fieldComponents['time'] = DateField as ComponentType<FieldComponentProps>;
+
+fieldComponents['file'] = FileField as ComponentType<FieldComponentProps>;
+fieldComponents['image'] = FileField as ComponentType<FieldComponentProps>;
+
+fieldComponents['rich-text'] = RichTextField as ComponentType<FieldComponentProps>;
+
+fieldComponents['relation'] = RelationField as ComponentType<FieldComponentProps>;
 
 /**
  * Register a field component

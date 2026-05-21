@@ -1,4 +1,4 @@
-import { Search, Bell, ChevronDown, LogOut, User, Settings } from 'lucide-react';
+import { Search, Bell, ChevronDown, LogOut, User, Settings, CheckCheck, ExternalLink } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/store';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,15 +11,32 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ROUTES } from '@/config';
+import { useNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllRead } from '@/lib/hooks/use-files-notifications';
+import { formatDistanceToNow } from 'date-fns';
 
 export function Header() {
   const { user, workspace, logout } = useAuthStore();
   const navigate = useNavigate();
 
+  // Notification hooks
+  const { data: countData } = useNotificationCount();
+  const { data: notificationsData, isLoading: notificationsLoading } = useNotifications({ page: 1, pageSize: 5 });
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllRead();
+
+  const unreadCount = countData?.count ?? 0;
+
   const handleLogout = () => {
     logout();
     navigate(ROUTES.LOGIN);
+  };
+
+  const handleNotificationClick = (id: string, link?: string) => {
+    markReadMutation.mutate(id);
+    if (link) navigate(link);
   };
 
   const getInitials = (name: string) => {
@@ -28,6 +45,15 @@ export function Header() {
       .map((n) => n[0])
       .join('')
       .toUpperCase();
+  };
+
+  const getNotificationBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'success': return 'default';
+      case 'warning': return 'secondary';
+      case 'error': return 'destructive';
+      default: return 'outline';
+    }
   };
 
   return (
@@ -62,10 +88,95 @@ export function Header() {
         )}
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 hover:bg-slate-100 transition-colors">
-          <Bell className="h-5 w-5 text-slate-600" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="relative rounded-lg p-2 hover:bg-slate-100 transition-colors">
+              <Bell className="h-5 w-5 text-slate-600" />
+              {unreadCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-96">
+            <div className="flex items-center justify-between px-2 py-2">
+              <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => markAllReadMutation.mutate()}
+                  disabled={markAllReadMutation.isPending}
+                >
+                  <CheckCheck className="mr-1 h-3 w-3" />
+                  Mark all read
+                </Button>
+              )}
+            </div>
+            <DropdownMenuSeparator />
+            <div className="max-h-96 overflow-y-auto">
+              {notificationsLoading ? (
+                <div className="space-y-2 p-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2 p-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : !notificationsData || notificationsData.items.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                notificationsData.items.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className={`flex-col items-start gap-1 p-3 cursor-pointer ${!notification.isRead ? 'bg-primary/5' : ''}`}
+                    onClick={() => handleNotificationClick(notification.id, notification.link)}
+                  >
+                    <div className="flex items-start justify-between w-full gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium truncate">{notification.title}</p>
+                          {!notification.isRead && (
+                            <span className="flex-shrink-0 h-2 w-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {notification.message}
+                        </p>
+                      </div>
+                      <Badge variant={getNotificationBadgeVariant(notification.type)} className="text-xs flex-shrink-0">
+                        {notification.type}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                      <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
+                      {notification.link && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            View <ExternalLink className="h-3 w-3" />
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="justify-center text-sm font-medium text-primary cursor-pointer"
+              onClick={() => navigate('/notifications')}
+            >
+              View all notifications
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* User Menu */}
         <DropdownMenu>

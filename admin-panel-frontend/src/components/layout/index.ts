@@ -2,3 +2,4 @@ export { AppLayout } from './app-layout';
 export { Sidebar } from './sidebar';
 export { Header } from './header';
 export { PageContainer } from './page-container';
+export { RootLayout } from './root-layout';

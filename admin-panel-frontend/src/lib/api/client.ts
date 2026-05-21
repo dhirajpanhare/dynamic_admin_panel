@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_CONFIG } from '@/config/api.config';
+import { STORAGE_KEYS } from '@/config/constants';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -15,13 +16,13 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Get token from memory (Zustand store will provide this)
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Get tenant ID from memory
-    const tenantId = localStorage.getItem('current_tenant');
+    const tenantId = localStorage.getItem(STORAGE_KEYS.TENANT);
     if (tenantId) {
       config.headers['X-Tenant-Id'] = tenantId;
     }

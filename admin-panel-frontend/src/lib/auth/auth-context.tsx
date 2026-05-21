@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom';
 import authService from './auth-service';
 import type { User, LoginResponse, OtpVerifyResponse } from './auth-service';
-import { STORAGE_KEYS } from '@/config/constants';
+import { STORAGE_KEYS, ROUTES } from '@/config/constants';
 
 interface AuthContextType {
   user: User | null;
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(response.token);
     setUser(response.user);
     
-    navigate('/admin/dashboard');
+    navigate(ROUTES.DASHBOARD);
   }, [navigate]);
 
   // Logout function
