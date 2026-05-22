@@ -1,6 +1,382 @@
-@dynamic_admin_panel_backend_HostAddress = http://localhost:5136
+### ============================================================
+### Dynamic Admin Panel - API Test Payloads
+### Base URL: http://localhost:5136
+### ============================================================
 
-GET {{dynamic_admin_panel_backend_HostAddress}}/weatherforecast/
+@baseUrl = http://localhost:5136
+@contentType = application/json
+@tenantId = 1
+
+# ---- Set this after login ----
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+
+### ============================================================
+### HEALTH CHECK (no auth required)
+### ============================================================
+
+### Ping
+GET {{baseUrl}}/api/v1/health/ping
 Accept: application/json
+
+###
+
+### Health Status
+GET {{baseUrl}}/api/v1/health
+Accept: application/json
+
+###
+
+
+### ============================================================
+### AUTH ENDPOINTS
+### ============================================================
+
+### Login (use admin@demo.com / Admin@123 from seed data)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@demo.com",
+  "password": "Admin@123"
+}
+
+###
+
+### Register New User
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: {{contentType}}
+
+{
+  "userName": "Jane Smith",
+  "email": "jane.smith@example.com",
+  "password": "SecurePass@123",
+  "phoneNumber": "+1234567891"
+}
+
+###
+
+### Refresh Token
+POST {{baseUrl}}/api/v1/auth/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "your-refresh-token-here"
+}
+
+###
+
+
+### ============================================================
+### DYNAMIC ENTITY - USERS  (entitySlug = users)
+### ============================================================
+
+### List Users
+GET {{baseUrl}}/api/v1/dynamic/users?Page=1&PageSize=10&SortBy=userName&SortOrder=asc
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Get User by ID
+GET {{baseUrl}}/api/v1/dynamic/users/1
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Create User
+POST {{baseUrl}}/api/v1/dynamic/users
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "userName": "Alice Johnson",
+    "userMailAddress": "alice.johnson@example.com",
+    "password": "SecurePass@123",
+    "userPhoneNumber": "+1987654321",
+    "isActive": true
+  }
+}
+
+###
+
+### Update User
+PUT {{baseUrl}}/api/v1/dynamic/users/1
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "userName": "Alice Johnson Updated",
+    "userPhoneNumber": "+1999888777",
+    "isActive": true
+  }
+}
+
+###
+
+### Soft Delete User
+DELETE {{baseUrl}}/api/v1/dynamic/users/1?HardDelete=false
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Hard Delete User
+DELETE {{baseUrl}}/api/v1/dynamic/users/1?HardDelete=true
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+
+### ============================================================
+### DYNAMIC ENTITY - ROLES  (entitySlug = roles)
+### ============================================================
+
+### List Roles
+GET {{baseUrl}}/api/v1/dynamic/roles?Page=1&PageSize=10
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Get Role by ID
+GET {{baseUrl}}/api/v1/dynamic/roles/1
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Create Role
+POST {{baseUrl}}/api/v1/dynamic/roles
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "tenantId": 1,
+    "name": "Manager",
+    "slug": "manager",
+    "description": "Team manager with elevated access",
+    "isSystemRole": false,
+    "isActive": true
+  }
+}
+
+###
+
+### Update Role
+PUT {{baseUrl}}/api/v1/dynamic/roles/1
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "name": "Senior Manager",
+    "description": "Updated manager role",
+    "isActive": true
+  }
+}
+
+###
+
+### Soft Delete Role
+DELETE {{baseUrl}}/api/v1/dynamic/roles/1?HardDelete=false
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+
+### ============================================================
+### DYNAMIC ENTITY - PERMISSIONS  (entitySlug = permissions)
+### ============================================================
+
+### List Permissions
+GET {{baseUrl}}/api/v1/dynamic/permissions?Page=1&PageSize=20
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Create Permission
+POST {{baseUrl}}/api/v1/dynamic/permissions
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "name": "Export Reports",
+    "slug": "reports.export",
+    "description": "Allows exporting data reports",
+    "module": "Reports",
+    "action": "export",
+    "resource": "reports"
+  }
+}
+
+###
+
+### Update Permission
+PUT {{baseUrl}}/api/v1/dynamic/permissions/1
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "description": "Updated permission description",
+    "isActive": true
+  }
+}
+
+###
+
+
+### ============================================================
+### DYNAMIC ENTITY - TENANTS  (entitySlug = tenants)
+### ============================================================
+
+### List Tenants
+GET {{baseUrl}}/api/v1/dynamic/tenants?Page=1&PageSize=10
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Get Tenant by ID
+GET {{baseUrl}}/api/v1/dynamic/tenants/1
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Create Tenant
+POST {{baseUrl}}/api/v1/dynamic/tenants
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "workSpaceName": "Acme Corporation",
+    "subDomainName": "acme",
+    "status": "Active",
+    "isolationLevel": "Shared",
+    "subscriptionTier": "Pro",
+    "subscriptionStatus": "Active",
+    "maxUsers": 50,
+    "maxStorageMB": 2048,
+    "timezone": "UTC",
+    "dateFormat": "MM/dd/yyyy",
+    "currency": "USD",
+    "locale": "en-US"
+  }
+}
+
+###
+
+### Update Tenant
+PUT {{baseUrl}}/api/v1/dynamic/tenants/1
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+{
+  "data": {
+    "workSpaceName": "Acme Corp Updated",
+    "subscriptionTier": "Enterprise",
+    "maxUsers": 200,
+    "maxStorageMB": 10240
+  }
+}
+
+###
+
+
+### ============================================================
+### TENANTS CONTROLLER (dedicated)
+### ============================================================
+
+### List All Tenants
+GET {{baseUrl}}/api/v1/tenants
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+### Get Tenant by ID
+GET {{baseUrl}}/api/v1/tenants/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+
+### ============================================================
+### FILE UPLOAD
+### ============================================================
+
+### Upload File (use a form-data client like Postman for binary)
+# POST {{baseUrl}}/api/v1/file/upload?folder=uploads
+# Content-Type: multipart/form-data
+# Authorization: Bearer {{token}}
+# Body: file = <your file>
+
+### Delete File
+DELETE {{baseUrl}}/api/v1/file/your-public-file-id
+Authorization: Bearer {{token}}
+
+###
+
+
+### ============================================================
+### ADVANCED LIST QUERIES (search, filter, sort)
+### ============================================================
+
+### Search Users by name
+GET {{baseUrl}}/api/v1/dynamic/users?Page=1&PageSize=5&Search=alice
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Filter by date range
+GET {{baseUrl}}/api/v1/dynamic/users?DateFrom=2024-01-01&DateTo=2024-12-31&SortBy=createDateTime&SortOrder=desc
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Get specific fields only
+GET {{baseUrl}}/api/v1/dynamic/users?Fields=userId,userName,userMailAddress
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
+
+###
+
+### Get multiple records by IDs
+GET {{baseUrl}}/api/v1/dynamic/users?Ids=1,2,3
+Accept: application/json
+Authorization: Bearer {{token}}
+X-Tenant-Id: {{tenantId}}
 
 ###

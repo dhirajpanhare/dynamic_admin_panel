@@ -1,0 +1,16 @@
+using DynamicAdminPanel.Domain.Common;
+
+namespace DynamicAdminPanel.Domain.Entities;
+
+public class AuditLog : BaseEntity<int>
+{
+    public int TenantId { get; set; }
+    public int? UserId { get; set; }
+    public string EntityName { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty;
+    public string? OldValues { get; set; }
+    public string? NewValues { get; set; }
+    public string? IPAddress { get; set; }
+    public string? UserAgent { get; set; }
+}
