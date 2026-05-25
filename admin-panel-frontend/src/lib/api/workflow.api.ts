@@ -1,4 +1,5 @@
-import apiClient from './client';
+import { api } from './client';
+import { API_CONFIG } from '@/config/api.config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,30 +58,30 @@ export interface ListResponse<T> {
 
 export const workflowApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string }): Promise<ListResponse<WorkflowDefinition>> =>
-    apiClient.get('/api/workflows', { params }).then((r) => r.data),
+    api.get<ListResponse<WorkflowDefinition>>(API_CONFIG.endpoints.workflows.list, { params }),
 
   getById: (id: string): Promise<WorkflowDefinition> =>
-    apiClient.get(`/api/workflows/${id}`).then((r) => r.data),
+    api.get<WorkflowDefinition>(API_CONFIG.endpoints.workflows.detail(id)),
 
   create: (data: Partial<WorkflowDefinition>): Promise<WorkflowDefinition> =>
-    apiClient.post('/api/workflows', data).then((r) => r.data),
+    api.post<WorkflowDefinition>(API_CONFIG.endpoints.workflows.create, data),
 
   update: (id: string, data: Partial<WorkflowDefinition>): Promise<WorkflowDefinition> =>
-    apiClient.put(`/api/workflows/${id}`, data).then((r) => r.data),
+    api.put<WorkflowDefinition>(API_CONFIG.endpoints.workflows.update(id), data),
 
   delete: (id: string): Promise<void> =>
-    apiClient.delete(`/api/workflows/${id}`).then((r) => r.data),
+    api.delete<void>(API_CONFIG.endpoints.workflows.delete(id)),
 
   activate: (id: string): Promise<WorkflowDefinition> =>
-    apiClient.post(`/api/workflows/${id}/activate`).then((r) => r.data),
+    api.patch<WorkflowDefinition>(API_CONFIG.endpoints.workflows.activate(id)),
 
   pause: (id: string): Promise<WorkflowDefinition> =>
-    apiClient.post(`/api/workflows/${id}/pause`).then((r) => r.data),
+    api.patch<WorkflowDefinition>(API_CONFIG.endpoints.workflows.pause(id)),
 
   getLogs: (params?: {
     page?: number;
     pageSize?: number;
     workflowId?: string;
   }): Promise<ListResponse<WorkflowLog>> =>
-    apiClient.get('/api/workflows/logs', { params }).then((r) => r.data),
+    api.get<ListResponse<WorkflowLog>>('/workflows/logs', { params }),
 };

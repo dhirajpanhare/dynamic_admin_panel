@@ -16,19 +16,21 @@ export interface EntityField {
   id: string;
   name: string;
   label: string;
-  field_type: string;
+  /** camelCase from backend: text|email|number|select|checkbox|date|... */
+  fieldType: string;
   required: boolean;
-  default_value?: any;
+  readonly?: boolean;
+  defaultValue?: any;
   placeholder?: string;
-  help_text?: string;
-  validation?: Record<string, any>;
+  helpText?: string;
+  validationRules?: Record<string, any>;
   options?: Array<{ label: string; value: string }>;
-  relation?: {
+  relationConfig?: {
     entity: string;
-    display_field: string;
-    value_field: string;
+    displayField: string;
+    valueField: string;
   };
-  conditional?: {
+  conditionalVisibility?: {
     field: string;
     operator: string;
     value: any;
@@ -41,7 +43,7 @@ export interface EntityConfig {
   name: string;
   slug: string;
   label: string;
-  label_plural: string;
+  labelPlural: string;
   icon?: string;
   description?: string;
   fields: EntityField[];
@@ -52,9 +54,8 @@ export interface EntityConfig {
     delete: string;
   };
   settings?: {
-    enable_audit: boolean;
-    enable_soft_delete: boolean;
-    enable_versioning: boolean;
+    enableAudit: boolean;
+    enableSoftDelete: boolean;
   };
 }
 
@@ -71,23 +72,10 @@ export interface ListViewColumn {
 export interface ListViewConfig {
   entity: string;
   columns: ListViewColumn[];
-  default_sort?: {
-    field: string;
-    direction: 'asc' | 'desc';
-  };
-  filters?: Array<{
-    field: string;
-    type: string;
-    label: string;
-    options?: any[];
-  }>;
-  actions?: Array<{
-    id: string;
-    label: string;
-    icon?: string;
-    type: 'single' | 'bulk';
-    permission?: string;
-  }>;
+  /** camelCase from backend */
+  defaultSortField?: string;
+  defaultSortDirection?: 'asc' | 'desc';
+  defaultPageSize?: number;
 }
 
 export interface PageConfig {
@@ -103,64 +91,48 @@ export interface PageConfig {
 
 export interface DashboardWidget {
   id: string;
-  type: 'chart' | 'metric' | 'table' | 'custom';
+  type: string;
   title: string;
   position: { x: number; y: number; w: number; h: number };
   config: Record<string, any>;
-  data_source?: {
-    entity?: string;
-    endpoint?: string;
-    params?: Record<string, any>;
-  };
-  refresh_interval?: number;
+  /** camelCase from backend */
+  dataSource?: Record<string, any>;
+  refreshIntervalSeconds?: number;
 }
 
 export interface DashboardConfig {
   id: string;
   slug: string;
-  title: string;
-  description?: string;
+  name: string;
   widgets: DashboardWidget[];
-  layout: 'grid' | 'flex';
-  permissions?: string[];
+}
+
+export interface DashboardSummary {
+  id: string;
+  slug: string;
+  name: string;
+  isDefault: boolean;
 }
 
 // Metadata API methods
 export const metadataApi = {
-  /**
-   * Get menu items for navigation
-   */
-  getMenuItems: async (): Promise<MenuItem[]> => {
-    return api.get<MenuItem[]>(API_CONFIG.endpoints.metadata.menus);
-  },
+  getMenuItems: (): Promise<MenuItem[]> =>
+    api.get<MenuItem[]>(API_CONFIG.endpoints.metadata.menus),
 
-  /**
-   * Get entity configuration by slug
-   */
-  getEntityConfig: async (slug: string): Promise<EntityConfig> => {
-    return api.get<EntityConfig>(API_CONFIG.endpoints.metadata.entity(slug));
-  },
+  getEntityConfig: (slug: string): Promise<EntityConfig> =>
+    api.get<EntityConfig>(API_CONFIG.endpoints.metadata.entity(slug)),
 
-  /**
-   * Get page configuration by slug
-   */
-  getPageConfig: async (slug: string): Promise<PageConfig> => {
-    return api.get<PageConfig>(API_CONFIG.endpoints.metadata.page(slug));
-  },
+  getDashboardConfig: (slug: string): Promise<DashboardConfig> =>
+    api.get<DashboardConfig>(API_CONFIG.endpoints.metadata.dashboard(slug)),
 
-  /**
-   * Get dashboard configuration by slug
-   */
-  getDashboardConfig: async (slug: string): Promise<DashboardConfig> => {
-    return api.get<DashboardConfig>(API_CONFIG.endpoints.metadata.dashboard(slug));
-  },
+  getDashboards: (): Promise<DashboardSummary[]> =>
+    api.get<DashboardSummary[]>(API_CONFIG.endpoints.metadata.dashboards),
 
-  /**
-   * Get list view configuration for entity
-   */
-  getListViewConfig: async (entity: string): Promise<ListViewConfig> => {
-    return api.get<ListViewConfig>(API_CONFIG.endpoints.metadata.listViewConfig(entity));
-  },
+  getListViewConfig: (entity: string): Promise<ListViewConfig> =>
+    api.get<ListViewConfig>(API_CONFIG.endpoints.metadata.listViewConfig(entity)),
+
+  saveDashboard: (slug: string, data: { name: string; isDefault: boolean; widgets: DashboardWidget[] }): Promise<DashboardConfig> =>
+    api.put<DashboardConfig>(API_CONFIG.endpoints.metadata.dashboard(slug), data),
 };
 
 export default metadataApi;

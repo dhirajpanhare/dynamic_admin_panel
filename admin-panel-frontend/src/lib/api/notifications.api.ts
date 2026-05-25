@@ -1,4 +1,5 @@
-import apiClient from './client';
+import { api } from './client';
+import { API_CONFIG } from '@/config/api.config';
 
 export interface Notification {
   id: string;
@@ -6,30 +7,32 @@ export interface Notification {
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
   isRead: boolean;
-  link?: string;
+  actionUrl?: string;
+  icon?: string;
+  readAt?: string;
   createdAt: string;
 }
 
-export interface ListResponse<T> {
-  items: T[];
+export interface NotificationPage {
+  items: Notification[];
   total: number;
+  unreadCount: number;
   page: number;
-  pageSize: number;
+  perPage: number;
 }
 
 export const notificationsApi = {
-  list: (params?: { page?: number; pageSize?: number; unreadOnly?: boolean }): Promise<ListResponse<Notification>> =>
-    apiClient.get('/api/notifications', { params }).then((r) => r.data),
+  list: (params?: { page?: number; perPage?: number; unreadOnly?: boolean }): Promise<NotificationPage> =>
+    api.get<NotificationPage>(API_CONFIG.endpoints.notifications.list, { params }),
 
-  getUnreadCount: (): Promise<{ count: number }> =>
-    apiClient.get('/api/notifications/unread-count').then((r) => r.data),
-
+  /** Marks a single notification as read — backend uses PATCH */
   markRead: (id: string): Promise<void> =>
-    apiClient.put(`/api/notifications/${id}/read`).then((r) => r.data),
+    api.patch<void>(API_CONFIG.endpoints.notifications.markRead(id)),
 
+  /** Marks all unread notifications as read — backend uses PATCH */
   markAllRead: (): Promise<void> =>
-    apiClient.put('/api/notifications/read-all').then((r) => r.data),
+    api.patch<void>(API_CONFIG.endpoints.notifications.markAllRead),
 
   delete: (id: string): Promise<void> =>
-    apiClient.delete(`/api/notifications/${id}`).then((r) => r.data),
+    api.delete<void>(API_CONFIG.endpoints.notifications.delete(id)),
 };

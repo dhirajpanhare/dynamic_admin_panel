@@ -1,23 +1,23 @@
-import apiClient from './client';
+import { api } from './client';
+import { API_CONFIG } from '@/config/api.config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Role {
   id: string;
   name: string;
-  description: string;
+  slug: string;
+  description?: string;
   permissions: string[];
   userCount: number;
-  isSystem: boolean;
-  createdAt: string;
-  updatedAt: string;
+  isSystemRole: boolean;
 }
 
 export interface Permission {
   id: string;
   name: string;
-  resource: string;
-  action: string;
+  slug: string;
+  group?: string;
   description?: string;
 }
 
@@ -25,84 +25,81 @@ export interface RbacUser {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string;
+  isActive: boolean;
   roles: string[];
-  status: 'active' | 'inactive' | 'pending';
-  lastLogin?: string;
   createdAt: string;
+  lastLoginAt?: string;
 }
 
 export interface AuditLog {
   id: string;
+  entityName: string;
+  entityId: string;
+  action: string;
+  oldValues?: string;
+  newValues?: string;
   userId: string;
   userName: string;
-  action: string;
-  resource: string;
-  resourceId?: string;
-  details?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;
 }
 
-export interface ListResponse<T> {
+export interface PagedResult<T> {
   items: T[];
-  total: number;
+  totalCount: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 // ─── Roles API ────────────────────────────────────────────────────────────────
 
 export const rolesApi = {
   list: (): Promise<Role[]> =>
-    apiClient.get('/api/roles').then((r) => r.data),
+    api.get<Role[]>(API_CONFIG.endpoints.roles.list),
 
-  getById: (id: string): Promise<Role> =>
-    apiClient.get(`/api/roles/${id}`).then((r) => r.data),
+  create: (data: { name: string; slug: string; description?: string }): Promise<Role> =>
+    api.post<Role>(API_CONFIG.endpoints.roles.create, data),
 
-  create: (data: Partial<Role>): Promise<Role> =>
-    apiClient.post('/api/roles', data).then((r) => r.data),
-
-  update: (id: string, data: Partial<Role>): Promise<Role> =>
-    apiClient.put(`/api/roles/${id}`, data).then((r) => r.data),
+  update: (id: string, data: { name: string; description?: string }): Promise<Role> =>
+    api.put<Role>(API_CONFIG.endpoints.roles.update(id), data),
 
   delete: (id: string): Promise<void> =>
-    apiClient.delete(`/api/roles/${id}`).then((r) => r.data),
+    api.delete<void>(API_CONFIG.endpoints.roles.delete(id)),
 
-  assignPermissions: (id: string, permissions: string[]): Promise<Role> =>
-    apiClient.put(`/api/roles/${id}/permissions`, { permissions }).then((r) => r.data),
+  assignPermissions: (id: string, permissions: string[]): Promise<void> =>
+    api.put<void>(API_CONFIG.endpoints.roles.setPermissions(id), { permissions }),
 };
 
 // ─── Users API ────────────────────────────────────────────────────────────────
 
 export const usersApi = {
-  list: (params?: { page?: number; pageSize?: number; search?: string }): Promise<ListResponse<RbacUser>> =>
-    apiClient.get('/api/users', { params }).then((r) => r.data),
+  list: (params?: { page?: number; perPage?: number; search?: string; isActive?: boolean }): Promise<PagedResult<RbacUser>> =>
+    api.get<PagedResult<RbacUser>>(API_CONFIG.endpoints.users.list, { params }),
 
   getById: (id: string): Promise<RbacUser> =>
-    apiClient.get(`/api/users/${id}`).then((r) => r.data),
+    api.get<RbacUser>(API_CONFIG.endpoints.users.detail(id)),
 
-  invite: (data: { name: string; email: string; roles: string[] }): Promise<RbacUser> =>
-    apiClient.post('/api/users/invite', data).then((r) => r.data),
+  invite: (data: { email: string; displayName: string; roleSlug?: string }): Promise<RbacUser> =>
+    api.post<RbacUser>(API_CONFIG.endpoints.users.invite, data),
 
-  update: (id: string, data: Partial<RbacUser>): Promise<RbacUser> =>
-    apiClient.put(`/api/users/${id}`, data).then((r) => r.data),
+  update: (id: string, data: { displayName?: string; avatarUrl?: string; roleSlugs?: string[] }): Promise<void> =>
+    api.put<void>(API_CONFIG.endpoints.users.update(id), data),
+
+  setStatus: (id: string, isActive: boolean): Promise<void> =>
+    api.put<void>(API_CONFIG.endpoints.users.setStatus(id), { isActive }),
 
   delete: (id: string): Promise<void> =>
-    apiClient.delete(`/api/users/${id}`).then((r) => r.data),
-
-  assignRoles: (id: string, roles: string[]): Promise<RbacUser> =>
-    apiClient.put(`/api/users/${id}/roles`, { roles }).then((r) => r.data),
-
-  deactivate: (id: string): Promise<RbacUser> =>
-    apiClient.post(`/api/users/${id}/deactivate`).then((r) => r.data),
+    api.delete<void>(API_CONFIG.endpoints.users.delete(id)),
 };
 
 // ─── Permissions API ──────────────────────────────────────────────────────────
 
 export const permissionsApi = {
   list: (): Promise<Permission[]> =>
-    apiClient.get('/api/permissions').then((r) => r.data),
+    api.get<Permission[]>(API_CONFIG.endpoints.permissions.list),
 };
 
 // ─── Audit Logs API ───────────────────────────────────────────────────────────
@@ -110,11 +107,12 @@ export const permissionsApi = {
 export const auditLogsApi = {
   list: (params?: {
     page?: number;
-    pageSize?: number;
+    perPage?: number;
+    entity?: string;
     userId?: string;
-    resource?: string;
-    from?: string;
-    to?: string;
-  }): Promise<ListResponse<AuditLog>> =>
-    apiClient.get('/api/audit-logs', { params }).then((r) => r.data),
+    action?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<PagedResult<AuditLog>> =>
+    api.get<PagedResult<AuditLog>>(API_CONFIG.endpoints.auditLogs.list, { params }),
 };

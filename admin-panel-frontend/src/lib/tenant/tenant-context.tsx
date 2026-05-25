@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS, FEATURES } from '@/config/constants';
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1';
+
 export interface Tenant {
   id: string;
   name: string;
@@ -48,12 +50,39 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(false);
   }, []);
 
-  // Apply tenant branding
+  // Apply tenant branding — fetch from API, fall back to stored primaryColor
   useEffect(() => {
-    if (currentTenant?.primaryColor) {
-      document.documentElement.style.setProperty('--primary', currentTenant.primaryColor);
-    }
-  }, [currentTenant]);
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    fetch(`${API_BASE}/tenants/branding`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((res) => {
+        const b = res?.data;
+        if (!b) return;
+        const root = document.documentElement;
+        if (b.primaryColor) root.style.setProperty('--primary', b.primaryColor);
+        if (b.secondaryColor) root.style.setProperty('--secondary', b.secondaryColor);
+        if (b.backgroundColor) root.style.setProperty('--background', b.backgroundColor);
+        if (b.textColor) root.style.setProperty('--foreground', b.textColor);
+        if (b.fontFamily) root.style.setProperty('--font-sans', b.fontFamily);
+        if (b.borderRadius) root.style.setProperty('--radius', b.borderRadius);
+        // Update current tenant logo if returned
+        if (b.logoUrl && currentTenant) {
+          setCurrentTenantState((prev) => prev ? { ...prev, logo: b.logoUrl } : prev);
+        }
+      })
+      .catch(() => {
+        // Branding fetch failed; apply any stored primaryColor as fallback
+        if (currentTenant?.primaryColor) {
+          document.documentElement.style.setProperty('--primary', currentTenant.primaryColor);
+        }
+      });
+  // Re-run when the current tenant changes (e.g. after a tenant switch)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTenant?.id]);
 
   const switchTenant = useCallback((tenantId: string) => {
     const tenant = availableTenants.find((t) => t.id === tenantId);

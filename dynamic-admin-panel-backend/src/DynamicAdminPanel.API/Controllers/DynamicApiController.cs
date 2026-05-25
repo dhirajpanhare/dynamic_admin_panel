@@ -1,306 +1,220 @@
-using DynamicAdminPanel.Application.Interfaces;
+﻿using DynamicAdminPanel.Application.Interfaces;
+using DynamicAdminPanel.Infrastructure.Persistence;
 using DynamicAdminPanel.Shared.Requests;
 using DynamicAdminPanel.Shared.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DynamicAdminPanel.API.Controllers;
 
 /// <summary>
-/// Dynamic API controller for CRUD operations on any entity type
-/// Supports metadata-driven operations with flexible filtering, sorting, and pagination
+/// Serves real CRUD operations for any entity defined in the metadata engine.
+/// Each operation:
+///   1. Loads the entity metadata (slug -> table name, fields, schema)
+///   2. Delegates to DynamicQueryBuilder which builds safe, parameterized SQL
+///   3. Returns structured JSON responses consistent across all entities
 /// </summary>
 [ApiController]
 [Route("api/v1/dynamic/{entitySlug}")]
 [Authorize]
 public class DynamicApiController : ControllerBase
 {
-    private readonly IStoredProcedureExecutor _spExecutor;
+    private readonly IDynamicQueryBuilder _queryBuilder;
+    private readonly ApplicationDbContext _db;
+    private readonly ITenantContext _tenant;
     private readonly ILogger<DynamicApiController> _logger;
-    private readonly ITenantContext _tenantContext;
 
     public DynamicApiController(
-        IStoredProcedureExecutor spExecutor,
-        ILogger<DynamicApiController> logger,
-        ITenantContext tenantContext)
+        IDynamicQueryBuilder queryBuilder,
+        ApplicationDbContext db,
+        ITenantContext tenant,
+        ILogger<DynamicApiController> logger)
     {
-        _spExecutor = spExecutor;
+        _queryBuilder = queryBuilder;
+        _db = db;
+        _tenant = tenant;
         _logger = logger;
-        _tenantContext = tenantContext;
     }
 
     /// <summary>
-    /// Get a paginated list of entities with optional filtering, sorting, and search
+    /// Get a paginated, sorted, and filtered list of records for any entity.
+    /// Query params: page, pageSize, sortBy, sortDirection, search, filter[field]=value
     /// </summary>
-    /// <param name="entitySlug">Entity type identifier (e.g., 'users', 'products')</param>
-    /// <param name="request">Query parameters for filtering, pagination, and sorting</param>
-    /// <returns>Paginated list of entities</returns>
-    /// <response code="200">Entities retrieved successfully</response>
-    /// <response code="401">Unauthorized - JWT token required</response>
-    /// <response code="404">Entity type not found</response>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<PagedResponse<Dictionary<string, object>>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<PagedResponse<Dictionary<string, object>>>>> GetEntities(
-        string entitySlug,
-        [FromQuery] DynamicQueryRequest request)
+    [ProducesResponseType(typeof(ApiResponse<PagedResponse<Dictionary<string, object?>>>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetList(string entitySlug, [FromQuery] DynamicQueryRequest req)
     {
-        _logger.LogInformation("Getting entities for {EntitySlug} with filters: {@Filters}", entitySlug, request.Filters);
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
 
-        // Build dynamic parameters from request
-        var parameters = new Dictionary<string, object>
-        {
-            ["EntitySlug"] = entitySlug,
-            ["TenantId"] = _tenantContext.TenantId ?? 0,
-            ["Page"] = request.Page,
-            ["PageSize"] = request.PageSize,
-            ["SortBy"] = request.SortBy ?? string.Empty,
-            ["SortOrder"] = request.SortOrder ?? string.Empty,
-            ["Search"] = request.Search ?? string.Empty
-        };
+        var query = new DynamicListQuery(
+            TableName: meta.TableName,
+            Schema: meta.Schema,
+            PrimaryKeyColumn: meta.PrimaryKey,
+            EnableSoftDelete: meta.SoftDelete,
+            AllowedColumns: meta.AllowedColumns,
+            Page: req.Page,
+            PageSize: Math.Min(req.PageSize, 200),
+            SortBy: req.SortBy,
+            SortDirection: req.SortOrder ?? "asc",
+            Search: req.Search,
+            SearchableColumns: meta.SearchableColumns,
+            Filters: req.Filters);
 
-        // Add dynamic filters
-        if (request.Filters != null && request.Filters.Any())
-        {
-            parameters["Filters"] = System.Text.Json.JsonSerializer.Serialize(request.Filters);
-        }
+        var result = await _queryBuilder.GetListAsync(query);
+        var paged = new PagedResponse<Dictionary<string, object?>>(
+            result.Items.ToList(), result.TotalCount, result.Page, result.PageSize);
 
-        // Add date range filters
-        if (request.DateFrom.HasValue)
-        {
-            parameters["DateFrom"] = request.DateFrom.Value;
-        }
-
-        if (request.DateTo.HasValue)
-        {
-            parameters["DateTo"] = request.DateTo.Value;
-        }
-
-        // Add field selection
-        if (!string.IsNullOrEmpty(request.Fields))
-        {
-            parameters["Fields"] = request.Fields;
-        }
-
-        if (!string.IsNullOrEmpty(request.Include))
-        {
-            parameters["Include"] = request.Include;
-        }
-
-        if (!string.IsNullOrEmpty(request.Ids))
-        {
-            parameters["Ids"] = request.Ids;
-        }
-
-        // Add custom parameters
-        if (request.CustomParams != null && request.CustomParams.Any())
-        {
-            foreach (var param in request.CustomParams)
-            {
-                parameters[param.Key] = param.Value;
-            }
-        }
-
-        var items = await _spExecutor.ExecuteQueryAsync<Dictionary<string, object>>(
-            "sp_GetEntities",
-            parameters
-        );
-
-        var totalCount = await _spExecutor.ExecuteScalarAsync<int>(
-            "sp_GetEntitiesCount",
-            new { EntitySlug = entitySlug, TenantId = _tenantContext.TenantId, Search = request.Search, Filters = request.Filters != null ? System.Text.Json.JsonSerializer.Serialize(request.Filters) : null }
-        );
-
-        var pagedResponse = new PagedResponse<Dictionary<string, object>>(
-            items.ToList(),
-            totalCount,
-            request.Page,
-            request.PageSize
-        );
-
-        return Ok(ApiResponse<PagedResponse<Dictionary<string, object>>>.SuccessResponse(
-            pagedResponse,
-            "Entities retrieved successfully"
-        ));
+        return Ok(ApiResponse<PagedResponse<Dictionary<string, object?>>>.SuccessResponse(paged));
     }
 
-    /// <summary>
-    /// Get a single entity by its ID
-    /// </summary>
-    /// <param name="entitySlug">Entity type identifier (e.g., 'users', 'products')</param>
-    /// <param name="id">Entity ID</param>
-    /// <returns>Entity data</returns>
-    /// <response code="200">Entity retrieved successfully</response>
-    /// <response code="401">Unauthorized - JWT token required</response>
-    /// <response code="404">Entity not found</response>
+    /// <summary>Get a single record by its primary key.</summary>
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, object>>>> GetEntityById(
-        string entitySlug,
-        string id)
+    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object?>>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetById(string entitySlug, string id)
     {
-        _logger.LogInformation("Getting entity {EntitySlug} with ID {Id}", entitySlug, id);
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
 
-        var parameters = new
-        {
-            EntitySlug = entitySlug,
-            TenantId = _tenantContext.TenantId,
-            EntityId = id
-        };
+        var query = new DynamicSingleQuery(
+            meta.TableName, meta.Schema, meta.PrimaryKey, meta.SoftDelete, meta.AllowedColumns, id);
 
-        var entity = await _spExecutor.ExecuteQueryFirstOrDefaultAsync<Dictionary<string, object>>(
-            "sp_GetEntityById",
-            parameters
-        );
+        var row = await _queryBuilder.GetByIdAsync(query);
+        if (row is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Record ''{id}'' not found in ''{entitySlug}''"));
 
-        if (entity == null)
-        {
-            return NotFound(ApiResponse<Dictionary<string, object>>.ErrorResponse(
-                $"Entity {entitySlug} with ID {id} not found"
-            ));
-        }
-
-        return Ok(ApiResponse<Dictionary<string, object>>.SuccessResponse(
-            entity,
-            "Entity retrieved successfully"
-        ));
+        return Ok(ApiResponse<Dictionary<string, object?>>.SuccessResponse(row));
     }
 
     /// <summary>
-    /// Create a new entity
+    /// Create a new record. Body is a flat JSON object: { "fieldName": value, ... }
+    /// Unknown fields (not in entity metadata) are silently ignored.
     /// </summary>
-    /// <param name="entitySlug">Entity type identifier (e.g., 'users', 'products')</param>
-    /// <param name="request">Entity data as key-value pairs</param>
-    /// <returns>Created entity data</returns>
-    /// <response code="201">Entity created successfully</response>
-    /// <response code="400">Invalid entity data</response>
-    /// <response code="401">Unauthorized - JWT token required</response>
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object>>), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, object>>>> CreateEntity(
-        string entitySlug,
-        [FromBody] CreateEntityRequest request)
+    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object?>>), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Create(string entitySlug, [FromBody] Dictionary<string, object?> payload)
     {
-        _logger.LogInformation("Creating entity {EntitySlug}", entitySlug);
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
 
-        var parameters = new
-        {
-            EntitySlug = entitySlug,
-            TenantId = _tenantContext.TenantId,
-            Data = System.Text.Json.JsonSerializer.Serialize(request.Data)
-        };
+        var query = new DynamicWriteQuery(
+            meta.TableName, meta.Schema, meta.PrimaryKey, meta.WritableColumns, payload);
 
-        var newEntity = await _spExecutor.ExecuteQueryFirstOrDefaultAsync<Dictionary<string, object>>(
-            "sp_CreateEntity",
-            parameters
-        );
+        var created = await _queryBuilder.CreateAsync(query);
+        _logger.LogInformation("Created record in {Slug}", entitySlug);
 
-        return CreatedAtAction(
-            nameof(GetEntityById),
-            new { entitySlug, id = newEntity?["Id"] },
-            ApiResponse<Dictionary<string, object>>.SuccessResponse(
-                newEntity!,
-                "Entity created successfully"
-            )
-        );
+        return CreatedAtAction(nameof(GetById),
+            new { entitySlug, id = created.GetValueOrDefault(meta.PrimaryKey) },
+            ApiResponse<Dictionary<string, object?>>.SuccessResponse(created, "Record created"));
     }
 
     /// <summary>
-    /// Update an existing entity
+    /// Update an existing record. Only provided fields are updated.
+    /// Body: { "fieldName": newValue, ... }
     /// </summary>
-    /// <param name="entitySlug">Entity type identifier (e.g., 'users', 'products')</param>
-    /// <param name="id">Entity ID</param>
-    /// <param name="request">Updated entity data as key-value pairs</param>
-    /// <returns>Updated entity data</returns>
-    /// <response code="200">Entity updated successfully</response>
-    /// <response code="400">Invalid entity data</response>
-    /// <response code="401">Unauthorized - JWT token required</response>
-    /// <response code="404">Entity not found</response>
     [HttpPut("{id}")]
-    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, object>>>> UpdateEntity(
-        string entitySlug,
-        string id,
-        [FromBody] UpdateEntityRequest request)
+    [ProducesResponseType(typeof(ApiResponse<Dictionary<string, object?>>), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Update(string entitySlug, string id, [FromBody] Dictionary<string, object?> payload)
     {
-        _logger.LogInformation("Updating entity {EntitySlug} with ID {Id}", entitySlug, id);
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
 
-        var parameters = new
-        {
-            EntitySlug = entitySlug,
-            TenantId = _tenantContext.TenantId,
-            EntityId = id,
-            Data = System.Text.Json.JsonSerializer.Serialize(request.Data)
-        };
+        var query = new DynamicWriteQuery(
+            meta.TableName, meta.Schema, meta.PrimaryKey, meta.WritableColumns, payload, Id: id);
 
-        var updatedEntity = await _spExecutor.ExecuteQueryFirstOrDefaultAsync<Dictionary<string, object>>(
-            "sp_UpdateEntity",
-            parameters
-        );
+        var updated = await _queryBuilder.UpdateAsync(query);
+        if (updated.Count == 0)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Record ''{id}'' not found in ''{entitySlug}''"));
 
-        if (updatedEntity == null)
-        {
-            return NotFound(ApiResponse<Dictionary<string, object>>.ErrorResponse(
-                $"Entity {entitySlug} with ID {id} not found"
-            ));
-        }
-
-        return Ok(ApiResponse<Dictionary<string, object>>.SuccessResponse(
-            updatedEntity,
-            "Entity updated successfully"
-        ));
+        return Ok(ApiResponse<Dictionary<string, object?>>.SuccessResponse(updated, "Record updated"));
     }
 
     /// <summary>
-    /// Delete an entity (soft delete by default, hard delete optional)
+    /// Delete a record. Soft-delete by default; pass ?hardDelete=true to permanently remove.
     /// </summary>
-    /// <param name="entitySlug">Entity type identifier (e.g., 'users', 'products')</param>
-    /// <param name="id">Entity ID</param>
-    /// <param name="request">Delete options (hard delete flag)</param>
-    /// <returns>Success status</returns>
-    /// <response code="200">Entity deleted successfully</response>
-    /// <response code="401">Unauthorized - JWT token required</response>
-    /// <response code="404">Entity not found</response>
     [HttpDelete("{id}")]
-    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse<bool>>> DeleteEntity(
-        string entitySlug,
-        string id,
-        [FromQuery] DeleteEntityRequest request)
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Delete(string entitySlug, string id, [FromQuery] bool hardDelete = false)
     {
-        _logger.LogInformation("Deleting entity {EntitySlug} with ID {Id} (HardDelete: {HardDelete})", 
-            entitySlug, id, request.HardDelete);
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
 
-        var parameters = new
+        var useSoftDelete = meta.SoftDelete && !hardDelete;
+        var query = new DynamicDeleteQuery(meta.TableName, meta.Schema, meta.PrimaryKey, useSoftDelete, id);
+        await _queryBuilder.DeleteAsync(query);
+
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Record deleted"));
+    }
+
+    /// <summary>
+    /// Bulk delete multiple records by ID list.
+    /// Body: { "ids": ["1", "2", "3"] }
+    /// </summary>
+    [HttpDelete("bulk-delete")]
+    [ProducesResponseType(typeof(ApiResponse<BulkDeleteResultDto>), 200)]
+    public async Task<IActionResult> BulkDelete(string entitySlug, [FromBody] BulkDeleteBodyDto body)
+    {
+        var meta = await LoadEntityMetaAsync(entitySlug);
+        if (meta is null)
+            return NotFound(ApiResponse<object>.ErrorResponse($"Entity ''{entitySlug}'' not found"));
+
+        int deleted = 0;
+        foreach (var id in body.Ids)
         {
-            EntitySlug = entitySlug,
-            TenantId = _tenantContext.TenantId,
-            EntityId = id,
-            HardDelete = request.HardDelete
-        };
-
-        var rowsAffected = await _spExecutor.ExecuteAsync("sp_DeleteEntity", parameters);
-
-        if (rowsAffected == 0)
-        {
-            return NotFound(ApiResponse<bool>.ErrorResponse(
-                $"Entity {entitySlug} with ID {id} not found"
-            ));
+            var query = new DynamicDeleteQuery(meta.TableName, meta.Schema, meta.PrimaryKey, meta.SoftDelete, id);
+            await _queryBuilder.DeleteAsync(query);
+            deleted++;
         }
 
-        return Ok(ApiResponse<bool>.SuccessResponse(
-            true,
-            "Entity deleted successfully"
-        ));
+        return Ok(ApiResponse<BulkDeleteResultDto>.SuccessResponse(
+            new BulkDeleteResultDto(deleted), $"{deleted} records deleted"));
     }
+
+    // ---- helpers -----
+
+    private async Task<EntityMeta?> LoadEntityMetaAsync(string slug)
+    {
+        var entity = await _db.EntityMetadatas
+            .Include(e => e.Fields)
+            .Where(e => e.TenantId == _tenant.TenantId && e.Slug == slug && e.IsActive && e.IsApiEnabled)
+            .FirstOrDefaultAsync();
+
+        if (entity is null) return null;
+
+        var allCols = entity.Fields.Select(f => f.ColumnName).ToList();
+        var writableCols = entity.Fields.Where(f => !f.IsReadonly).Select(f => f.ColumnName).ToList();
+        var searchCols = entity.Fields
+            .Where(f => f.IsFilterable || f.FieldType == "text" || f.FieldType == "email")
+            .Select(f => f.ColumnName).ToList();
+
+        return new EntityMeta(
+            entity.TableName, entity.DatabaseSchema, entity.PrimaryKeyColumn,
+            entity.EnableSoftDelete, allCols, writableCols, searchCols);
+    }
+
+    private record EntityMeta(
+        string TableName, string Schema, string PrimaryKey, bool SoftDelete,
+        IReadOnlyList<string> AllowedColumns, IReadOnlyList<string> WritableColumns,
+        IReadOnlyList<string> SearchableColumns);
 }
+
+public record BulkDeleteBodyDto(IReadOnlyList<string> Ids);
+public record BulkDeleteResultDto(int DeletedCount);

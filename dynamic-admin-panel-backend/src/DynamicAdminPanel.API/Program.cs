@@ -1,5 +1,6 @@
 using DynamicAdminPanel.API.Middleware;
 using DynamicAdminPanel.Application.Interfaces;
+using DynamicAdminPanel.Infrastructure.DynamicEngine;
 using DynamicAdminPanel.Domain.Entities;
 using DynamicAdminPanel.Infrastructure.Caching;
 using DynamicAdminPanel.Infrastructure.Identity;
@@ -90,6 +91,9 @@ builder.Services.AddSwaggerGen(c =>
     {
         c.IncludeXmlComments(xmlPath);
     }
+
+    // Use full type name to avoid schema ID conflicts between DTOs with the same name in different namespaces
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
 
     // Support for polymorphic types
     c.UseAllOfToExtendReferenceSchemas();
@@ -195,6 +199,8 @@ builder.Services.AddScoped<IFileStorageService, CloudinaryFileStorageService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+// Dynamic engine — metadata-driven SQL query builder
+builder.Services.AddScoped<IDynamicQueryBuilder, DynamicAdminPanel.Infrastructure.DynamicEngine.DynamicQueryBuilder>();
 
 var app = builder.Build();
 
@@ -239,6 +245,9 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Seed database on startup
+await DynamicAdminPanel.API.DatabaseSeeder.SeedAsync(app.Services);
 
 app.Run();
 

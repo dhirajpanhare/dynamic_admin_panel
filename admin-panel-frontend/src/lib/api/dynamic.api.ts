@@ -1,23 +1,24 @@
 import { api } from './client';
-import apiClient from './client';
 import { API_CONFIG } from '@/config/api.config';
 
-// Types for dynamic API responses
+// Types for dynamic API responses — matches backend PagedResponse<T>
 export interface ListResponse<T> {
   items: T[];
-  total: number;
+  totalCount: number;   // backend: totalCount
   page: number;
-  perPage: number;
+  pageSize: number;     // backend: pageSize
   totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 }
 
 export interface ListParams {
   page?: number;
-  perPage?: number;
-  sort?: string;
-  order?: 'asc' | 'desc';
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   search?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, string | number | boolean>;
   [key: string]: any;
 }
 

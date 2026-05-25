@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { metadataApi } from '@/lib/api/metadata.api';
-import type { EntityConfig, MenuItem, PageConfig, DashboardConfig } from '@/lib/api/metadata.api';
+import type { EntityConfig, MenuItem, DashboardConfig } from '@/lib/api/metadata.api';
 import { useMetadataStore } from '@/lib/store/metadata.store';
 import { QUERY_KEYS } from '@/config/constants';
 
@@ -47,22 +47,11 @@ export function useEntityConfig(slug: string): UseQueryResult<EntityConfig, Erro
 }
 
 /**
- * Hook to fetch and cache page configuration
+ * Hook to fetch entity config (alias for useEntityConfig, kept for backwards compatibility)
+ * @deprecated Use useEntityConfig instead
  */
-export function usePageConfig(slug: string): UseQueryResult<PageConfig, Error> {
-  const { setPageConfig, getPageConfig } = useMetadataStore();
-
-  return useQuery({
-    queryKey: [QUERY_KEYS.PAGE_CONFIG, slug],
-    queryFn: async () => {
-      const config = await metadataApi.getPageConfig(slug);
-      setPageConfig(slug, config);
-      return config;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    initialData: () => getPageConfig(slug),
-    enabled: !!slug,
-  });
+export function usePageConfig(slug: string): UseQueryResult<EntityConfig, Error> {
+  return useEntityConfig(slug);
 }
 
 /**

@@ -6,7 +6,7 @@ import { LoginPage } from '@/features/auth/login-page';
 import { OtpVerifyPage } from '@/features/auth/otp-verify';
 import { WorkspaceSelectorPage } from '@/pages/workspace/workspace-selector';
 import { DashboardPage } from '@/pages/dashboard/dashboard';
-import { ProductsPage } from '@/pages/products/products';
+import ProductsPage from '@/pages/products/products';
 import { FormBuilderPage } from '@/pages/builder/form-builder';
 import { UsersPage } from '@/pages/users/users';
 import { WorkflowPage } from '@/pages/workflow/workflow';

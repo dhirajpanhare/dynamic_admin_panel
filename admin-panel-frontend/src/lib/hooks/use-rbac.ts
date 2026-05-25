@@ -96,7 +96,7 @@ export function useDeleteUser() {
 export function useAssignRoles() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, roles }: { id: string; roles: string[] }) => usersApi.assignRoles(id, roles),
+    mutationFn: ({ id, roles }: { id: string; roles: string[] }) => usersApi.update(id, { roleSlugs: roles }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] });
       toast.success('Roles updated successfully');
@@ -123,9 +123,10 @@ export function useAuditLogs(params?: {
   page?: number;
   pageSize?: number;
   userId?: string;
-  resource?: string;
-  from?: string;
-  to?: string;
+  entity?: string;
+  action?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }) {
   return useQuery({
     queryKey: [QUERY_KEYS.AUDIT_LOGS, params],
